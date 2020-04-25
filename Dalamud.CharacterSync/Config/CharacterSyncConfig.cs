@@ -12,6 +12,16 @@ namespace Dalamud.RichPresence.Config
         public int Version { get; set; } = 0;
 
         public bool IsEnabled = true;
+
+        public bool SyncHotbars = true;
+        public bool SyncMacro = true;
+        public bool SyncKeybind = true;
+        public bool SyncLogfilter = true;
+        public bool SyncCharSettings = true;
+        public bool SyncKeyboardSettings = true;
+        public bool SyncGamepadSettings = true;
+        public bool SyncCardSets = true;
+
         public ulong Cid;
         public string SetName;
     }

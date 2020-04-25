@@ -51,7 +51,7 @@ namespace Dalamud.CharacterSync
 
         public Hook<CreateFileWDelegate> _createFileHook;
 
-        private Regex saveFolderRegex = new Regex(@"(.*)FFXIV_CHR(.*)\/(?!ITEMODR\.DAT|ITEMFDR\.DAT)(.*)", RegexOptions.Compiled | RegexOptions.CultureInvariant);
+        private Regex saveFolderRegex = new Regex(@"(.*)FFXIV_CHR(.*)\/(?!ITEMODR\.DAT|ITEMFDR\.DAT|GEARSET\.DAT)(.*)", RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
         public IntPtr CreateFileWDetour(
             [MarshalAs(UnmanagedType.LPWStr)] string filename,
@@ -62,17 +62,55 @@ namespace Dalamud.CharacterSync
             [MarshalAs(UnmanagedType.U4)] FileAttributes flagsAndAttributes,
             IntPtr templateFile)
         {
-            if (Config.Cid != 0)
+            try
             {
-                var match = this.saveFolderRegex.Match(filename);
-                if (match.Success)
+                if (Config.Cid != 0)
                 {
-                    filename = $"{match.Groups[1].Value}/FFXIV_CHR{Config.Cid:X16}/{match.Groups[3].Value}";
-                    PluginLog.Log("REWRITE: " + filename);
-                }
-            }
+                    var match = this.saveFolderRegex.Match(filename);
+                    if (match.Success)
+                    {
+                        if (!Config.SyncHotbars && match.Groups[3].Value == "HOTBAR.DAT")
+                            goto breakout;
 
-            return this._createFileHook.Original(filename, access, share, securityAttributes, creationDisposition, flagsAndAttributes, templateFile);
+                        if (!Config.SyncMacro && match.Groups[3].Value == "MACRO.DAT")
+                            goto breakout;
+
+                        if (!Config.SyncKeybind && match.Groups[3].Value == "KEYBIND.DAT")
+                            goto breakout;
+
+                        if (!Config.SyncLogfilter && match.Groups[3].Value == "LOGFLTR.DAT")
+                            goto breakout;
+
+                        if (!Config.SyncCharSettings && match.Groups[3].Value == "COMMON.DAT")
+                            goto breakout;
+
+                        if (!Config.SyncKeyboardSettings && match.Groups[3].Value == "CONTROL0.DAT")
+                            goto breakout;
+
+                        if (!Config.SyncGamepadSettings && match.Groups[3].Value == "CONTROL1.DAT")
+                            goto breakout;
+
+                        if (!Config.SyncGamepadSettings && match.Groups[3].Value == "CONTROL1.DAT")
+                            goto breakout;
+
+                        if (!Config.SyncCardSets && match.Groups[3].Value == "GS.DAT")
+                            goto breakout;
+
+                        filename = $"{match.Groups[1].Value}/FFXIV_CHR{Config.Cid:X16}/{match.Groups[3].Value}";
+                        PluginLog.Log("REWRITE: " + filename);
+                    }
+                }
+
+                breakout:
+                return this._createFileHook.Original(filename, access, share, securityAttributes, creationDisposition,
+                    flagsAndAttributes, templateFile);
+            }
+            catch (Exception ex)
+            {
+                PluginLog.LogError(ex, "ERROR in CreateFileWDetour");
+                return _createFileHook.Original(filename, access, share, securityAttributes, creationDisposition,
+                    flagsAndAttributes, templateFile);
+            }
         }
 
         private void UiBuilder_OnBuildUi()
@@ -111,13 +149,26 @@ namespace Dalamud.CharacterSync
                     {
                         ImGui.Text($"Currently set to {Config.SetName}(FFXIV_CHR{Config.Cid:X16})");
                     }
+
+                    ImGui.Dummy(new Vector2(20, 20));
+
+                    ImGui.Checkbox("Sync Hotbars", ref Config.SyncHotbars);
+                    ImGui.Checkbox("Sync Macros", ref Config.SyncMacro);
+                    ImGui.Checkbox("Sync Keybinds", ref Config.SyncKeybind);
+                    ImGui.Checkbox("Sync Chatlog Settings", ref Config.SyncLogfilter);
+                    ImGui.Checkbox("Sync Character Settings", ref Config.SyncCharSettings);
+                    ImGui.Checkbox("Sync Keyboard Settings", ref Config.SyncKeyboardSettings);
+                    ImGui.Checkbox("Sync Gamepad Settings", ref Config.SyncGamepadSettings);
+                    ImGui.Checkbox("Sync Card Sets and Verminion Settings", ref Config.SyncCardSets);
                 }
 
                 ImGui.Separator();
 
-                if (ImGui.Button("Close"))
+                if (ImGui.Button("Save"))
                 {
                     _isMainConfigWindowDrawing = false;
+                    _pi.SavePluginConfig(Config);
+                    PluginLog.Log("CS saved.");
                 }
 
                 ImGui.End();
