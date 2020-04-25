@@ -72,7 +72,6 @@ namespace Dalamud.CharacterSync
                 }
             }
 
-            PluginLog.Log($"[CREATEFILEW] {filename} {access} {creationDisposition}");
             return this._createFileHook.Original(filename, access, share, securityAttributes, creationDisposition, flagsAndAttributes, templateFile);
         }
 
