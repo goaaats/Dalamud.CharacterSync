@@ -152,7 +152,7 @@ namespace Dalamud.CharacterSync
 
                     ImGui.Dummy(new Vector2(5, 5));
 
-                    ImGui.Text($"You logged in character is {_pi.ClientState.LocalPlayer.Name} on {_pi.ClientState.LocalPlayer.HomeWorld.GameData.Name}(FFXIV_CHR{_pi.ClientState.LocalContentId:X16})");
+                    ImGui.Text($"The logged in character is {_pi.ClientState.LocalPlayer.Name} on {_pi.ClientState.LocalPlayer.HomeWorld.GameData.Name}(FFXIV_CHR{_pi.ClientState.LocalContentId:X16})");
 
                     ImGui.Dummy(new Vector2(20, 20));
 
