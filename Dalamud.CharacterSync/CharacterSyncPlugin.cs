@@ -51,7 +51,7 @@ namespace Dalamud.CharacterSync
 
         public Hook<CreateFileWDelegate> _createFileHook;
 
-        private Regex saveFolderRegex = new Regex(@"(.*)FFXIV_CHR(.*)\/(?!ITEMODR\.DAT|ITEMFDR\.DAT|GEARSET\.DAT)(.*)", RegexOptions.Compiled | RegexOptions.CultureInvariant);
+        private Regex saveFolderRegex = new Regex(@"(.*)FFXIV_CHR(.*)\/(?!ITEMODR\.DAT|ITEMFDR\.DAT|GEARSET\.DAT|.*\.log)(.*)", RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
         public IntPtr CreateFileWDetour(
             [MarshalAs(UnmanagedType.LPWStr)] string filename,
@@ -96,7 +96,7 @@ namespace Dalamud.CharacterSync
                         if (!Config.SyncCardSets && match.Groups[3].Value == "GS.DAT")
                             goto breakout;
 
-                        filename = $"{match.Groups[1].Value}/FFXIV_CHR{Config.Cid:X16}/{match.Groups[3].Value}";
+                        filename = $"{match.Groups[1].Value}FFXIV_CHR{Config.Cid:X16}/{match.Groups[3].Value}";
                         PluginLog.Log("REWRITE: " + filename);
                     }
                 }
