@@ -150,6 +150,10 @@ namespace Dalamud.CharacterSync
                         ImGui.Text($"Currently set to {Config.SetName}(FFXIV_CHR{Config.Cid:X16})");
                     }
 
+                    ImGui.Dummy(new Vector2(5, 5));
+
+                    ImGui.Text($"You logged in character is {_pi.ClientState.LocalPlayer.Name} on {_pi.ClientState.LocalPlayer.HomeWorld.GameData.Name}(FFXIV_CHR{_pi.ClientState.LocalContentId:X16})");
+
                     ImGui.Dummy(new Vector2(20, 20));
 
                     ImGui.Checkbox("Sync Hotbars", ref Config.SyncHotbars);
