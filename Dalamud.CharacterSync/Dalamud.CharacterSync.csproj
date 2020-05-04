@@ -32,27 +32,27 @@
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="Dalamud">
-      <HintPath>..\..\..\..\AppData\Roaming\XIVLauncher\addon\Hooks\Dalamud.dll</HintPath>
+      <HintPath>$(USERPROFILE)\AppData\Roaming\XIVLauncher\addon\Hooks\Dalamud.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="EasyHook">
-      <HintPath>..\..\..\..\AppData\Roaming\XIVLauncher\addon\Hooks\EasyHook.dll</HintPath>
+      <HintPath>$(USERPROFILE)\AppData\Roaming\XIVLauncher\addon\Hooks\EasyHook.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="ImGui.NET">
-      <HintPath>..\..\..\..\AppData\Roaming\XIVLauncher\addon\Hooks\ImGui.NET.dll</HintPath>
+      <HintPath>$(USERPROFILE)\AppData\Roaming\XIVLauncher\addon\Hooks\ImGui.NET.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="ImGuiScene">
-      <HintPath>..\..\..\..\AppData\Roaming\XIVLauncher\addon\Hooks\ImGuiScene.dll</HintPath>
+      <HintPath>$(USERPROFILE)\AppData\Roaming\XIVLauncher\addon\Hooks\ImGuiScene.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="Lumina">
-      <HintPath>..\..\..\..\AppData\Roaming\XIVLauncher\addon\Hooks\Lumina.dll</HintPath>
+      <HintPath>$(USERPROFILE)\AppData\Roaming\XIVLauncher\addon\Hooks\Lumina.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="SDL2-CS">
-      <HintPath>..\..\..\..\AppData\Roaming\XIVLauncher\addon\Hooks\SDL2-CS.dll</HintPath>
+      <HintPath>$(USERPROFILE)\AppData\Roaming\XIVLauncher\addon\Hooks\SDL2-CS.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="System" />
