@@ -51,7 +51,7 @@ namespace Dalamud.CharacterSync
 
         public Hook<CreateFileWDelegate> _createFileHook;
 
-        private Regex saveFolderRegex = new Regex(@"(.*)FFXIV_CHR(.*)\/(?!ITEMODR\.DAT|ITEMFDR\.DAT|GEARSET\.DAT|.*\.log)(.*)", RegexOptions.Compiled | RegexOptions.CultureInvariant);
+        private Regex saveFolderRegex = new Regex(@"(.*)FFXIV_CHR(.*)\/(?!ITEMODR\.DAT|ITEMFDR\.DAT|GEARSET\.DAT|UISAVE\.DAT|.*\.log)(.*)", RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
         public IntPtr CreateFileWDetour(
             [MarshalAs(UnmanagedType.LPWStr)] string filename,
