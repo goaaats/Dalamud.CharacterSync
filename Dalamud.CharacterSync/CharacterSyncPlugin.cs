@@ -1,6 +1,7 @@
 ﻿using System;
 using System.IO;
 using System.Numerics;
+using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
 using Dalamud.Game.Command;
@@ -9,6 +10,7 @@ using Dalamud.Plugin;
 using Dalamud.RichPresence.Config;
 using EasyHook;
 using ImGuiNET;
+using ImGuiScene;
 
 namespace Dalamud.CharacterSync
 {
@@ -18,6 +20,10 @@ namespace Dalamud.CharacterSync
         private DalamudPluginInterface _pi;
 
         private bool _isMainConfigWindowDrawing = false;
+        private bool _isSafeMode = false;
+        private bool _showRestartMessage = false;
+
+        private TextureWrap _warningTex;
 
         private CharacterSyncConfig Config;
 
@@ -38,6 +44,23 @@ namespace Dalamud.CharacterSync
 
             this._createFileHook = new Hook<CreateFileWDelegate>(LocalHook.GetProcAddress("Kernel32", "CreateFileW"), new CreateFileWDelegate(CreateFileWDetour));
             this._createFileHook.Enable();
+
+            if (pluginInterface.Reason == PluginLoadReason.Installer)
+            {
+                _isSafeMode = true;
+
+                PluginLog.Log("Installer, safe mode...");
+            }
+
+            if (pluginInterface.Reason == PluginLoadReason.Boot && pluginInterface.ClientState.LocalPlayer != null)
+            {
+                _isSafeMode = true;
+                _showRestartMessage = true;
+
+                _warningTex = pluginInterface.UiBuilder.LoadImage(Path.Combine(
+                    Path.GetDirectoryName(Assembly.GetAssembly(typeof(CharacterSyncPlugin)).Location), "warningtex.png"));
+                PluginLog.Log("Boot while logged in, safe mode...");
+            }
         }
 
         public delegate IntPtr CreateFileWDelegate(
@@ -96,6 +119,12 @@ namespace Dalamud.CharacterSync
                         if (!Config.SyncCardSets && match.Groups[3].Value == "GS.DAT")
                             goto breakout;
 
+                        if (_isSafeMode)
+                        {
+                            PluginLog.Log("SAFE MODE: " + filename);
+                            goto breakout;
+                        }
+
                         filename = $"{match.Groups[1].Value}FFXIV_CHR{Config.Cid:X16}/{match.Groups[3].Value}";
                         PluginLog.Log("REWRITE: " + filename);
                     }
@@ -115,10 +144,20 @@ namespace Dalamud.CharacterSync
 
         private void UiBuilder_OnBuildUi()
         {
+            ImGui.SetNextWindowSize(new Vector2(600, 400));
+
+            ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(0, 0));
+            if (_showRestartMessage && ImGui.Begin("Character Sync Message",
+                ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoDecoration | ImGuiWindowFlags.NoTitleBar))
+            {
+                ImGui.Image(_warningTex.ImGuiHandle, new Vector2(600, 400));
+            }
+            ImGui.PopStyleVar();
+
             ImGui.SetNextWindowSize(new Vector2(750, 520));
 
             if (_isMainConfigWindowDrawing && ImGui.Begin("Character Sync Config", ref _isMainConfigWindowDrawing,
-                ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoScrollbar))
+                    ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoScrollbar))
             {
                 ImGui.Text("This window allows you to configure Character Sync.");
                 ImGui.Text("Click the button below while being logged in on your main character - all logins from now on will use this character's save data!");
@@ -184,6 +223,7 @@ namespace Dalamud.CharacterSync
         public void Dispose()
         {
             _createFileHook.Dispose();
+            _warningTex?.Dispose();
             _pi.CommandManager.RemoveHandler("/pcharsync");
             _pi.Dispose();
         }
