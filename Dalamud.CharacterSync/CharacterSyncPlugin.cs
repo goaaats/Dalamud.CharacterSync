@@ -144,6 +144,8 @@ namespace Dalamud.CharacterSync
 
         private void UiBuilder_OnBuildUi()
         {
+            if (_showRestartMessage)
+            {
             ImGui.SetNextWindowSize(new Vector2(600, 400));
 
             ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(0, 0));
@@ -153,7 +155,9 @@ namespace Dalamud.CharacterSync
                 ImGui.Image(_warningTex.ImGuiHandle, new Vector2(600, 400));
             }
             ImGui.PopStyleVar();
+            }
 
+            if (_isMainConfigWindowDrawing) {
             ImGui.SetNextWindowSize(new Vector2(750, 520));
 
             if (_isMainConfigWindowDrawing && ImGui.Begin("Character Sync Config", ref _isMainConfigWindowDrawing,
@@ -215,6 +219,7 @@ namespace Dalamud.CharacterSync
                 }
 
                 ImGui.End();
+            }
             }
         }
 
