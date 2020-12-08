@@ -57,6 +57,9 @@
       <HintPath>$(USERPROFILE)\AppData\Roaming\XIVLauncher\addon\Hooks\Lumina.Generated.dll</HintPath>
       <Private>False</Private>
     </Reference>
+    <Reference Include="Lumina.Excel">
+      <HintPath>..\..\..\..\AppData\Roaming\XIVLauncher\addon\Hooks\Lumina.Excel.dll</HintPath>
+    </Reference>
     <Reference Include="SDL2-CS">
       <HintPath>$(USERPROFILE)\AppData\Roaming\XIVLauncher\addon\Hooks\SDL2-CS.dll</HintPath>
       <Private>False</Private>
