@@ -126,7 +126,7 @@ namespace Dalamud.CharacterSync
                         }
 
                         filename = $"{match.Groups[1].Value}FFXIV_CHR{Config.Cid:X16}/{match.Groups[3].Value}";
-                        PluginLog.Log("REWRITE: " + filename);
+                        //PluginLog.Log("REWRITE: " + filename);
                     }
                 }
 
