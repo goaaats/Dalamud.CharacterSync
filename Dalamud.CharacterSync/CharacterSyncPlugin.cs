@@ -4,11 +4,13 @@ using System.Numerics;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
+using Dalamud.Game.ClientState;
 using Dalamud.Game.Command;
 using Dalamud.Hooking;
+using Dalamud.IoC;
+using Dalamud.Logging;
 using Dalamud.Plugin;
 using Dalamud.RichPresence.Config;
-using EasyHook;
 using ImGuiNET;
 using ImGuiScene;
 
@@ -17,8 +19,6 @@ namespace Dalamud.CharacterSync
     // ReSharper disable once UnusedType.Global
     public class CharacterSyncPlugin : IDalamudPlugin
     {
-        private DalamudPluginInterface _pi;
-
         private bool _isMainConfigWindowDrawing = false;
         private bool _isSafeMode = false;
         private bool _showRestartMessage = false;
@@ -27,37 +27,44 @@ namespace Dalamud.CharacterSync
 
         private CharacterSyncConfig Config;
 
-        public void Initialize(DalamudPluginInterface pluginInterface)
+        [PluginService]
+        private DalamudPluginInterface Interface { get; set; }
+
+        [PluginService]
+        private CommandManager Command { get; set; }
+
+        [PluginService]
+        private ClientState State { get; set; }
+
+        public CharacterSyncPlugin()
         {
-            _pi = pluginInterface;
+            Config = Interface.GetPluginConfig() as CharacterSyncConfig ?? new CharacterSyncConfig();
 
-            Config = pluginInterface.GetPluginConfig() as CharacterSyncConfig ?? new CharacterSyncConfig();
+            Interface.UiBuilder.Draw += UiBuilder_OnBuildUi;
+            Interface.UiBuilder.OpenConfigUi += () => _isMainConfigWindowDrawing = true;
 
-            _pi.UiBuilder.OnBuildUi += UiBuilder_OnBuildUi;
-            _pi.UiBuilder.OnOpenConfigUi += (sender, args) => _isMainConfigWindowDrawing = true;
-
-            _pi.CommandManager.AddHandler("/pcharsync",
+            Command.AddHandler("/pcharsync",
                 new CommandInfo((string cmd, string args) => _isMainConfigWindowDrawing = true)
                 {
                     HelpMessage = "Open the Character Sync configuration."
                 });
 
-            this._createFileHook = new Hook<CreateFileWDelegate>(LocalHook.GetProcAddress("Kernel32", "CreateFileW"), new CreateFileWDelegate(CreateFileWDetour));
+            this._createFileHook = Hook<CreateFileWDelegate>.FromSymbol("Kernel32", "CreateFileW", this.CreateFileWDetour);
             this._createFileHook.Enable();
 
-            if (pluginInterface.Reason == PluginLoadReason.Installer)
+            if (Interface.Reason == PluginLoadReason.Installer)
             {
                 _isSafeMode = true;
 
                 PluginLog.Log("Installer, safe mode...");
             }
 
-            if (pluginInterface.Reason == PluginLoadReason.Boot && pluginInterface.ClientState.LocalPlayer != null)
+            if (Interface.Reason == PluginLoadReason.Boot && State.LocalPlayer != null)
             {
                 _isSafeMode = true;
                 _showRestartMessage = true;
 
-                _warningTex = pluginInterface.UiBuilder.LoadImage(Path.Combine(
+                _warningTex = Interface.UiBuilder.LoadImage(Path.Combine(
                     Path.GetDirectoryName(Assembly.GetAssembly(typeof(CharacterSyncPlugin)).Location), "warningtex.png"));
                 PluginLog.Log("Boot while logged in, safe mode...");
             }
@@ -146,19 +153,18 @@ namespace Dalamud.CharacterSync
         {
             if (_showRestartMessage)
             {
-            ImGui.SetNextWindowSize(new Vector2(600, 400));
+                ImGui.SetNextWindowSize(new Vector2(600, 400));
 
-            ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(0, 0));
-            if (_showRestartMessage && ImGui.Begin("Character Sync Message",
-                ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoDecoration | ImGuiWindowFlags.NoTitleBar))
-            {
-                ImGui.Image(_warningTex.ImGuiHandle, new Vector2(600, 400));
-            }
-            ImGui.PopStyleVar();
+                ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(0, 0));
+                if (this._showRestartMessage && ImGui.Begin("Character Sync Message",
+                    ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoScrollbar |
+                    ImGuiWindowFlags.NoDecoration | ImGuiWindowFlags.NoTitleBar))
+                    ImGui.Image(this._warningTex.ImGuiHandle, new Vector2(600, 400));
+                ImGui.PopStyleVar();
             }
 
             if (_isMainConfigWindowDrawing) {
-            ImGui.SetNextWindowSize(new Vector2(750, 520));
+                ImGui.SetNextWindowSize(new Vector2(750, 520));
 
             if (_isMainConfigWindowDrawing && ImGui.Begin("Character Sync Config", ref _isMainConfigWindowDrawing,
                     ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoScrollbar))
@@ -169,7 +175,7 @@ namespace Dalamud.CharacterSync
                 ImGui.Text("Please note that it is recommended to restart your game after changing these settings.");
                 ImGui.Separator();
 
-                if (_pi.ClientState.LocalPlayer == null)
+                if (State.LocalPlayer == null)
                 {
                     ImGui.Text("Please log in before using this plugin.");
                 }
@@ -177,9 +183,9 @@ namespace Dalamud.CharacterSync
                 {
                     if (ImGui.Button("Set save data to current character"))
                     {
-                        Config.Cid = _pi.ClientState.LocalContentId;
-                        Config.SetName = $"{_pi.ClientState.LocalPlayer.Name} on {_pi.ClientState.LocalPlayer.HomeWorld.GameData.Name}";
-                        _pi.SavePluginConfig(Config);
+                        Config.Cid = State.LocalContentId;
+                        Config.SetName = $"{State.LocalPlayer.Name} on {State.LocalPlayer.HomeWorld.GameData.Name}";
+                        Interface.SavePluginConfig(Config);
                         PluginLog.Log("CS saved.");
                     }
 
@@ -195,7 +201,7 @@ namespace Dalamud.CharacterSync
 
                     ImGui.Dummy(new Vector2(5, 5));
 
-                    ImGui.Text($"The logged in character is {_pi.ClientState.LocalPlayer.Name} on {_pi.ClientState.LocalPlayer.HomeWorld.GameData.Name}(FFXIV_CHR{_pi.ClientState.LocalContentId:X16})");
+                    ImGui.Text($"The logged in character is {State.LocalPlayer.Name} on {State.LocalPlayer.HomeWorld.GameData.Name}(FFXIV_CHR{State.LocalContentId:X16})");
 
                     ImGui.Dummy(new Vector2(20, 20));
 
@@ -214,7 +220,7 @@ namespace Dalamud.CharacterSync
                 if (ImGui.Button("Save"))
                 {
                     _isMainConfigWindowDrawing = false;
-                    _pi.SavePluginConfig(Config);
+                    Interface.SavePluginConfig(Config);
                     PluginLog.Log("CS saved.");
                 }
 
@@ -227,10 +233,10 @@ namespace Dalamud.CharacterSync
 
         public void Dispose()
         {
+            Interface.UiBuilder.Draw -= this.UiBuilder_OnBuildUi;
             _createFileHook.Dispose();
             _warningTex?.Dispose();
-            _pi.CommandManager.RemoveHandler("/pcharsync");
-            _pi.Dispose();
+            Command.RemoveHandler("/pcharsync");
         }
     }
 }
