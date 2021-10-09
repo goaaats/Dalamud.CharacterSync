@@ -249,7 +249,11 @@ namespace Dalamud.CharacterSync
 
         private void DoBackup()
         {
-            var backupFolder = new DirectoryInfo(Path.Combine(Interface.GetPluginConfigDirectory(), "backups"));
+            var configFolder = Interface.GetPluginConfigDirectory();
+            Directory.CreateDirectory(configFolder);
+
+            var backupFolder = new DirectoryInfo(Path.Combine(configFolder, "backups"));
+            Directory.CreateDirectory(backupFolder.FullName);
 
             var folders = backupFolder.GetDirectories().OrderBy(x => long.Parse(x.Name)).ToArray();
             if (folders.Count() > 2)
@@ -258,11 +262,7 @@ namespace Dalamud.CharacterSync
             }
 
             var thisBackupFolder = Path.Combine(backupFolder.FullName, DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString());
-
-            if (!Directory.Exists(thisBackupFolder))
-            {
-                Directory.CreateDirectory(thisBackupFolder);
-            }
+            Directory.CreateDirectory(thisBackupFolder);
 
             var xivFolder = new DirectoryInfo(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "My Games",
                 "FINAL FANTASY XIV - A Realm Reborn"));
