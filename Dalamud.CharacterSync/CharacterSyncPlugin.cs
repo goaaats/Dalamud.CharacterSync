@@ -52,7 +52,7 @@ namespace Dalamud.CharacterSync
                     HelpMessage = "Open the Character Sync configuration."
                 });
 
-            this.createFileHook = Hook<CreateFileWDelegate>.FromSymbol("Kernel32", "CreateFileW", this.CreateFileWDetour);
+            this.createFileHook = Hook<CreateFileWDelegate>.FromSymbol("Kernel32", "CreateFileW", this.CreateFileWDetour, true);
             this.createFileHook.Enable();
 
             if (this.Interface.Reason == PluginLoadReason.Installer)
