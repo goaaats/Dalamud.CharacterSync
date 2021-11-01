@@ -252,7 +252,7 @@ namespace Dalamud.CharacterSync
             Directory.CreateDirectory(backupFolder.FullName);
 
             var folders = backupFolder.GetDirectories().OrderBy(x => long.Parse(x.Name)).ToArray();
-            if (folders.Count() > 2)
+            if (folders.Length > 2)
             {
                 folders.FirstOrDefault()?.Delete(true);
             }
