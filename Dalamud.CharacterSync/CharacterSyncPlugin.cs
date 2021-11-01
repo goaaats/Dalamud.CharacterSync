@@ -1,4 +1,4 @@
-namespace Dalamud.CharacterSync
+﻿namespace Dalamud.CharacterSync
 {
     using System;
     using System.IO;
@@ -27,6 +27,10 @@ namespace Dalamud.CharacterSync
         private TextureWrap warningTex;
         private CharacterSyncConfig config;
 
+        // And we're never going to deallocate.
+        // JUST IN CASE it gets saved in the game somewhere.
+        private IntPtr lpFileName;
+
         [PluginService]
         private DalamudPluginInterface Interface { get; set; }
 
@@ -49,6 +53,7 @@ namespace Dalamud.CharacterSync
                     HelpMessage = "Open the Character Sync configuration.",
                 });
 
+            this.lpFileName = Marshal.AllocHGlobal(260);
             this.createFileHook = Hook<CreateFileWDelegate>.FromSymbol("Kernel32", "CreateFileW", this.CreateFileWDetour, true);
             this.createFileHook.Enable();
 
@@ -78,60 +83,52 @@ namespace Dalamud.CharacterSync
         }
 
         public delegate IntPtr CreateFileWDelegate(
-            [MarshalAs(UnmanagedType.LPWStr)] string filename,
-            [MarshalAs(UnmanagedType.U4)] FileAccess access,
-            [MarshalAs(UnmanagedType.U4)] FileShare share,
-            IntPtr securityAttributes,
-            [MarshalAs(UnmanagedType.U4)] FileMode creationDisposition,
-            [MarshalAs(UnmanagedType.U4)] FileAttributes flagsAndAttributes,
-            IntPtr templateFile);
+            IntPtr lpFileName,
+            uint dwDesiredAccess,
+            uint dwShareMode,
+            IntPtr lpSecurityAttributes,
+            uint dwCreationDisposition,
+            uint dwFlagsAndAttributes,
+            IntPtr hTemplateFile);
 
         private readonly Hook<CreateFileWDelegate> createFileHook;
 
-        private Regex saveFolderRegex = new Regex(@"(.*)FFXIV_CHR(.*)\/(?!ITEMODR\.DAT|ITEMFDR\.DAT|GEARSET\.DAT|UISAVE\.DAT|.*\.log)(.*)", RegexOptions.Compiled | RegexOptions.CultureInvariant);
+        private Regex saveFolderRegex = new(@"(.*)FFXIV_CHR(.*)\/(?!ITEMODR\.DAT|ITEMFDR\.DAT|GEARSET\.DAT|UISAVE\.DAT|.*\.log)(.*)", RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
         public IntPtr CreateFileWDetour(
-            [MarshalAs(UnmanagedType.LPWStr)] string filename,
-            [MarshalAs(UnmanagedType.U4)] FileAccess access,
-            [MarshalAs(UnmanagedType.U4)] FileShare share,
-            IntPtr securityAttributes,
-            [MarshalAs(UnmanagedType.U4)] FileMode creationDisposition,
-            [MarshalAs(UnmanagedType.U4)] FileAttributes flagsAndAttributes,
-            IntPtr templateFile)
+            IntPtr lpFileName,
+            uint dwDesiredAccess,
+            uint dwShareMode,
+            IntPtr lpSecurityAttributes,
+            uint dwCreationDisposition,
+            uint dwFlagsAndAttributes,
+            IntPtr hTemplateFile)
         {
             try
             {
+                var filename = Marshal.PtrToStringUni(lpFileName);
+                PluginLog.Information($"CharSyncHook: {filename}");
+
                 if (this.config.Cid != 0)
                 {
                     var match = this.saveFolderRegex.Match(filename);
                     if (match.Success)
                     {
-                        if (!this.config.SyncHotbars && match.Groups[3].Value == "HOTBAR.DAT")
-                            goto breakout;
+                        var rootPath = match.Groups[1].Value;
+                        var datName = match.Groups[3].Value;
 
-                        if (!this.config.SyncMacro && match.Groups[3].Value == "MACRO.DAT")
-                            goto breakout;
-
-                        if (!this.config.SyncKeybind && match.Groups[3].Value == "KEYBIND.DAT")
-                            goto breakout;
-
-                        if (!this.config.SyncLogfilter && match.Groups[3].Value == "LOGFLTR.DAT")
-                            goto breakout;
-
-                        if (!this.config.SyncCharSettings && match.Groups[3].Value == "COMMON.DAT")
-                            goto breakout;
-
-                        if (!this.config.SyncKeyboardSettings && match.Groups[3].Value == "CONTROL0.DAT")
-                            goto breakout;
-
-                        if (!this.config.SyncGamepadSettings && match.Groups[3].Value == "CONTROL1.DAT")
-                            goto breakout;
-
-                        if (!this.config.SyncGamepadSettings && match.Groups[3].Value == "CONTROL1.DAT")
-                            goto breakout;
-
-                        if (!this.config.SyncCardSets && match.Groups[3].Value == "GS.DAT")
-                            goto breakout;
+                        switch (datName)
+                        {
+                            case "HOTBAR.DAT" when !this.config.SyncHotbars:
+                            case "MACRO.DAT" when !this.config.SyncMacro:
+                            case "KEYBIND.DAT" when !this.config.SyncKeybind:
+                            case "LOGFLTR.DAT" when !this.config.SyncLogfilter:
+                            case "COMMON.DAT" when !this.config.SyncCharSettings:
+                            case "CONTROL0.DAT" when !this.config.SyncKeyboardSettings:
+                            case "CONTROL1.DAT" when !this.config.SyncGamepadSettings:
+                            case "GS.DAT" when !this.config.SyncCardSets:
+                                goto breakout;
+                        }
 
                         if (this.isSafeMode)
                         {
@@ -139,20 +136,23 @@ namespace Dalamud.CharacterSync
                             goto breakout;
                         }
 
-                        filename = $"{match.Groups[1].Value}FFXIV_CHR{config.Cid:X16}/{match.Groups[3].Value}";
+                        var newFilename = $"{rootPath}FFXIV_CHR{this.config.Cid:X16}/{datName}";
+                        var newBytes = Encoding.Unicode.GetBytes(newFilename + "\0\0");
+                        Marshal.Copy(newBytes, 0, this.lpFileName, newBytes.Length);
+
                         PluginLog.Information("REWRITE: " + filename);
+                        return this.createFileHook.Original(lpFileName, dwDesiredAccess, dwShareMode, lpSecurityAttributes, dwCreationDisposition, dwFlagsAndAttributes, hTemplateFile);
                     }
                 }
 
-                breakout:
-
-                return this.createFileHook.Original(filename, access, share, securityAttributes, creationDisposition, flagsAndAttributes, templateFile);
+            breakout: { /* Do nothing */ }
             }
             catch (Exception ex)
             {
                 PluginLog.LogError(ex, "ERROR in CreateFileWDetour");
-                return this.createFileHook.Original(filename, access, share, securityAttributes, creationDisposition, flagsAndAttributes, templateFile);
             }
+
+            return this.createFileHook.Original(lpFileName, dwDesiredAccess, dwShareMode, lpSecurityAttributes, dwCreationDisposition, dwFlagsAndAttributes, hTemplateFile);
         }
 
         private void UiBuilder_OnBuildUi()
