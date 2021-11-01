@@ -1,13 +1,11 @@
-﻿using System.IO.Compression;
-using System.Linq;
-
 namespace Dalamud.CharacterSync
 {
     using System;
     using System.IO;
+    using System.Linq;
     using System.Numerics;
-    using System.Reflection;
     using System.Runtime.InteropServices;
+    using System.Text;
     using System.Text.RegularExpressions;
     using Dalamud.Game.ClientState;
     using Dalamud.Game.Command;
@@ -27,7 +25,6 @@ namespace Dalamud.CharacterSync
         private bool showRestartMessage = false;
 
         private TextureWrap warningTex;
-
         private CharacterSyncConfig config;
 
         [PluginService]
@@ -43,13 +40,13 @@ namespace Dalamud.CharacterSync
         {
             this.config = this.Interface.GetPluginConfig() as CharacterSyncConfig ?? new CharacterSyncConfig();
 
-            this.Interface.UiBuilder.Draw += UiBuilder_OnBuildUi;
-            this.Interface.UiBuilder.OpenConfigUi += () => isMainConfigWindowDrawing = true;
+            this.Interface.UiBuilder.Draw += this.UiBuilder_OnBuildUi;
+            this.Interface.UiBuilder.OpenConfigUi += () => this.isMainConfigWindowDrawing = true;
 
             this.Command.AddHandler("/pcharsync",
-                new CommandInfo((string cmd, string args) => isMainConfigWindowDrawing = true)
+                new CommandInfo((string cmd, string args) => this.isMainConfigWindowDrawing = true)
                 {
-                    HelpMessage = "Open the Character Sync configuration."
+                    HelpMessage = "Open the Character Sync configuration.",
                 });
 
             this.createFileHook = Hook<CreateFileWDelegate>.FromSymbol("Kernel32", "CreateFileW", this.CreateFileWDetour, true);
@@ -63,7 +60,7 @@ namespace Dalamud.CharacterSync
             }
             else if (this.State.LocalPlayer != null)
             {
-                this.warningTex = this.Interface.UiBuilder.LoadImage(Path.Combine(Interface.AssemblyLocation.Directory.FullName, "warningtex.png"));
+                this.warningTex = this.Interface.UiBuilder.LoadImage(Path.Combine(this.Interface.AssemblyLocation.Directory.FullName, "warningtex.png"));
                 PluginLog.Log("Boot while logged in, safe mode...");
 
                 this.isSafeMode = true;
@@ -72,7 +69,7 @@ namespace Dalamud.CharacterSync
 
             try
             {
-                DoBackup();
+                this.DoBackup();
             }
             catch (Exception ex)
             {
@@ -181,8 +178,7 @@ namespace Dalamud.CharacterSync
             {
                 ImGui.SetNextWindowSize(new Vector2(750, 520));
 
-                if (ImGui.Begin("Character Sync Config", ref isMainConfigWindowDrawing,
-                    ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoScrollbar))
+                if (ImGui.Begin("Character Sync Config", ref this.isMainConfigWindowDrawing, ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoScrollbar))
                 {
                     ImGui.Text("This window allows you to configure Character Sync.");
                     ImGui.Text(
@@ -192,7 +188,7 @@ namespace Dalamud.CharacterSync
                         "Please note that it is recommended to restart your game after changing these settings.");
                     ImGui.Separator();
 
-                    if (State.LocalPlayer == null)
+                    if (this.State.LocalPlayer == null)
                     {
                         ImGui.Text("Please log in before using this plugin.");
                     }
@@ -206,7 +202,7 @@ namespace Dalamud.CharacterSync
                             PluginLog.Log("CS saved.");
                         }
 
-                        if (config.Cid == 0)
+                        if (this.config.Cid == 0)
                         {
                             ImGui.Text("No character was set as main character yet.");
                             ImGui.Text("Please click the button above while being logged in on your main character.");
@@ -249,7 +245,7 @@ namespace Dalamud.CharacterSync
 
         private void DoBackup()
         {
-            var configFolder = Interface.GetPluginConfigDirectory();
+            var configFolder = this.Interface.GetPluginConfigDirectory();
             Directory.CreateDirectory(configFolder);
 
             var backupFolder = new DirectoryInfo(Path.Combine(configFolder, "backups"));
@@ -264,7 +260,9 @@ namespace Dalamud.CharacterSync
             var thisBackupFolder = Path.Combine(backupFolder.FullName, DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString());
             Directory.CreateDirectory(thisBackupFolder);
 
-            var xivFolder = new DirectoryInfo(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "My Games",
+            var xivFolder = new DirectoryInfo(Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
+                "My Games",
                 "FINAL FANTASY XIV - A Realm Reborn"));
 
             if (!xivFolder.Exists)
@@ -288,8 +286,10 @@ namespace Dalamud.CharacterSync
             PluginLog.Information("Backup OK!");
         }
 
+        /// <inheritdoc/>
         public string Name => "Character Sync";
 
+        /// <inheritdoc/>
         public void Dispose()
         {
             this.Interface.UiBuilder.Draw -= this.UiBuilder_OnBuildUi;
