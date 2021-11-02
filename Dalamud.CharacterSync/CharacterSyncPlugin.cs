@@ -1,75 +1,71 @@
-﻿namespace Dalamud.CharacterSync
+﻿using System;
+using System.IO;
+using System.Linq;
+using System.Runtime.InteropServices;
+using System.Text.RegularExpressions;
+
+using Dalamud.CharacterSync.Interface;
+using Dalamud.Game.Command;
+using Dalamud.Hooking;
+using Dalamud.Interface.Windowing;
+using Dalamud.Logging;
+using Dalamud.Plugin;
+using Dalamud.RichPresence.Config;
+
+namespace Dalamud.CharacterSync
 {
-    using System;
-    using System.IO;
-    using System.Linq;
-    using System.Numerics;
-    using System.Runtime.InteropServices;
-    using System.Text;
-    using System.Text.RegularExpressions;
-    using Dalamud.Game.ClientState;
-    using Dalamud.Game.Command;
-    using Dalamud.Hooking;
-    using Dalamud.IoC;
-    using Dalamud.Logging;
-    using Dalamud.Plugin;
-    using Dalamud.RichPresence.Config;
-    using ImGuiNET;
-    using ImGuiScene;
-
-    // ReSharper disable once UnusedType.Global
-    public class CharacterSyncPlugin : IDalamudPlugin
+    /// <summary>
+    /// Main plugin class.
+    /// </summary>
+    internal class CharacterSyncPlugin : IDalamudPlugin
     {
-        private bool isMainConfigWindowDrawing = false;
-        private bool isSafeMode = false;
-        private bool showRestartMessage = false;
+        private readonly WindowSystem windowSystem;
+        private readonly ConfigWindow configWindow;
+        private readonly WarningWindow warningWindow;
 
-        private TextureWrap warningTex;
-        private CharacterSyncConfig config;
+        private readonly bool isSafeMode = false;
 
-        // And we're never going to deallocate.
-        // JUST IN CASE it gets saved in the game somewhere.
-        private IntPtr lpFileName;
+        private readonly Hook<FileInterfaceOpenFileDelegate> openFileHook;
+        private readonly Regex saveFolderRegex = new(
+            @"(?<path>.*)FFXIV_CHR(?<cid>.*)\/(?!ITEMODR\.DAT|ITEMFDR\.DAT|GEARSET\.DAT|UISAVE\.DAT|.*\.log)(?<dat>.*)",
+            RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
-        [PluginService]
-        private DalamudPluginInterface Interface { get; set; }
-
-        [PluginService]
-        private CommandManager Command { get; set; }
-
-        [PluginService]
-        private ClientState State { get; set; }
-
-        public CharacterSyncPlugin()
+        /// <summary>
+        /// Initializes a new instance of the <see cref="CharacterSyncPlugin"/> class.
+        /// </summary>
+        /// <param name="pluginInterface">Dalamud plugin interface.</param>
+        public CharacterSyncPlugin(DalamudPluginInterface pluginInterface)
         {
-            this.config = this.Interface.GetPluginConfig() as CharacterSyncConfig ?? new CharacterSyncConfig();
+            pluginInterface.Create<Service>();
 
-            this.Interface.UiBuilder.Draw += this.UiBuilder_OnBuildUi;
-            this.Interface.UiBuilder.OpenConfigUi += () => this.isMainConfigWindowDrawing = true;
+            Service.Configuration = Service.Interface.GetPluginConfig() as CharacterSyncConfig ?? new CharacterSyncConfig();
 
-            this.Command.AddHandler("/pcharsync",
-                new CommandInfo((string cmd, string args) => this.isMainConfigWindowDrawing = true)
-                {
-                    HelpMessage = "Open the Character Sync configuration.",
-                });
+            this.configWindow = new();
+            this.warningWindow = new();
+            this.windowSystem = new("CharacterSync");
+            this.windowSystem.AddWindow(this.configWindow);
+            this.windowSystem.AddWindow(this.warningWindow);
 
-            this.lpFileName = Marshal.AllocHGlobal(260);
-            this.createFileHook = Hook<CreateFileWDelegate>.FromSymbol("Kernel32", "CreateFileW", this.CreateFileWDetour, true);
-            this.createFileHook.Enable();
+            Service.Interface.UiBuilder.Draw += this.windowSystem.Draw;
+            Service.Interface.UiBuilder.OpenConfigUi += this.OnOpenConfigUi;
 
-            if (this.Interface.Reason == PluginLoadReason.Installer)
+            Service.CommandManager.AddHandler("/pcharsync", new CommandInfo(this.OnChatCommand)
             {
-                this.isSafeMode = true;
+                HelpMessage = "Open the Character Sync configuration.",
+                ShowInHelp = true,
+            });
 
-                PluginLog.Log("Installer, safe mode...");
+            if (Service.Interface.Reason == PluginLoadReason.Installer)
+            {
+                PluginLog.Warning("Installer, safe mode...");
+                this.isSafeMode = true;
             }
-            else if (this.State.LocalPlayer != null)
+            else if (Service.ClientState.LocalPlayer != null)
             {
-                this.warningTex = this.Interface.UiBuilder.LoadImage(Path.Combine(this.Interface.AssemblyLocation.Directory.FullName, "warningtex.png"));
-                PluginLog.Log("Boot while logged in, safe mode...");
-
+                PluginLog.Warning("Boot while logged in, safe mode...");
                 this.isSafeMode = true;
-                this.showRestartMessage = true;
+
+                this.warningWindow.IsOpen = true;
             }
 
             try
@@ -80,172 +76,44 @@
             {
                 PluginLog.Error(ex, "Could not backup character data files.");
             }
+
+            var address = new PluginAddressResolver();
+            address.Setup();
+
+            this.openFileHook = new Hook<FileInterfaceOpenFileDelegate>(address.FileInterfaceOpenFileAddress, this.OpenFileDetour);
+            this.openFileHook.Enable();
         }
 
-        public delegate IntPtr CreateFileWDelegate(
-            IntPtr lpFileName,
-            uint dwDesiredAccess,
-            uint dwShareMode,
-            IntPtr lpSecurityAttributes,
-            uint dwCreationDisposition,
-            uint dwFlagsAndAttributes,
-            IntPtr hTemplateFile);
+        private delegate IntPtr FileInterfaceOpenFileDelegate(
+            IntPtr pFileInterface,
+            [MarshalAs(UnmanagedType.LPWStr)] string filepath, // IntPtr pFilepath
+            uint a3);
 
-        private readonly Hook<CreateFileWDelegate> createFileHook;
+        /// <inheritdoc/>
+        public string Name => "Character Sync";
 
-        private Regex saveFolderRegex = new(@"(.*)FFXIV_CHR(.*)\/(?!ITEMODR\.DAT|ITEMFDR\.DAT|GEARSET\.DAT|UISAVE\.DAT|.*\.log)(.*)", RegexOptions.Compiled | RegexOptions.CultureInvariant);
-
-        public IntPtr CreateFileWDetour(
-            IntPtr lpFileName,
-            uint dwDesiredAccess,
-            uint dwShareMode,
-            IntPtr lpSecurityAttributes,
-            uint dwCreationDisposition,
-            uint dwFlagsAndAttributes,
-            IntPtr hTemplateFile)
+        /// <inheritdoc/>
+        public void Dispose()
         {
-            try
-            {
-                var filename = Marshal.PtrToStringUni(lpFileName);
-                PluginLog.Information($"CharSyncHook: {filename}");
-
-                if (this.config.Cid != 0)
-                {
-                    var match = this.saveFolderRegex.Match(filename);
-                    if (match.Success)
-                    {
-                        var rootPath = match.Groups[1].Value;
-                        var datName = match.Groups[3].Value;
-
-                        switch (datName)
-                        {
-                            case "HOTBAR.DAT" when !this.config.SyncHotbars:
-                            case "MACRO.DAT" when !this.config.SyncMacro:
-                            case "KEYBIND.DAT" when !this.config.SyncKeybind:
-                            case "LOGFLTR.DAT" when !this.config.SyncLogfilter:
-                            case "COMMON.DAT" when !this.config.SyncCharSettings:
-                            case "CONTROL0.DAT" when !this.config.SyncKeyboardSettings:
-                            case "CONTROL1.DAT" when !this.config.SyncGamepadSettings:
-                            case "GS.DAT" when !this.config.SyncCardSets:
-                                goto breakout;
-                        }
-
-                        if (this.isSafeMode)
-                        {
-                            PluginLog.Information("SAFE MODE: " + filename);
-                            goto breakout;
-                        }
-
-                        var newFilename = $"{rootPath}FFXIV_CHR{this.config.Cid:X16}/{datName}";
-                        var newBytes = Encoding.Unicode.GetBytes(newFilename + "\0\0");
-                        Marshal.Copy(newBytes, 0, this.lpFileName, newBytes.Length);
-
-                        PluginLog.Information("REWRITE: " + filename);
-                        return this.createFileHook.Original(lpFileName, dwDesiredAccess, dwShareMode, lpSecurityAttributes, dwCreationDisposition, dwFlagsAndAttributes, hTemplateFile);
-                    }
-                }
-
-            breakout: { /* Do nothing */ }
-            }
-            catch (Exception ex)
-            {
-                PluginLog.LogError(ex, "ERROR in CreateFileWDetour");
-            }
-
-            return this.createFileHook.Original(lpFileName, dwDesiredAccess, dwShareMode, lpSecurityAttributes, dwCreationDisposition, dwFlagsAndAttributes, hTemplateFile);
+            Service.CommandManager.RemoveHandler("/pcharsync");
+            Service.Interface.UiBuilder.Draw -= this.windowSystem.Draw;
+            this.warningWindow?.Dispose();
+            this.openFileHook?.Dispose();
         }
 
-        private void UiBuilder_OnBuildUi()
+        private void OnOpenConfigUi()
         {
-            if (this.showRestartMessage)
-            {
-                ImGui.SetNextWindowSize(new Vector2(600, 400));
+            this.configWindow.Toggle();
+        }
 
-                ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(0, 0));
-                if (ImGui.Begin(
-                    "Character Sync Message",
-                    ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoDecoration | ImGuiWindowFlags.NoTitleBar))
-                {
-                    ImGui.Image(this.warningTex.ImGuiHandle, new Vector2(600, 400));
-                }
-
-                ImGui.End();
-
-                ImGui.PopStyleVar();
-            }
-
-            if (this.isMainConfigWindowDrawing)
-            {
-                ImGui.SetNextWindowSize(new Vector2(750, 520));
-
-                if (ImGui.Begin("Character Sync Config", ref this.isMainConfigWindowDrawing, ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoScrollbar))
-                {
-                    ImGui.Text("This window allows you to configure Character Sync.");
-                    ImGui.Text(
-                        "Click the button below while being logged in on your main character - all logins from now on will use this character's save data!");
-                    ImGui.Text("None of your save data will be modified.");
-                    ImGui.Text(
-                        "Please note that it is recommended to restart your game after changing these settings.");
-                    ImGui.Separator();
-
-                    if (this.State.LocalPlayer == null)
-                    {
-                        ImGui.Text("Please log in before using this plugin.");
-                    }
-                    else
-                    {
-                        if (ImGui.Button("Set save data to current character"))
-                        {
-                            this.config.Cid = this.State.LocalContentId;
-                            this.config.SetName = $"{this.State.LocalPlayer.Name} on {this.State.LocalPlayer.HomeWorld.GameData.Name}";
-                            this.Interface.SavePluginConfig(this.config);
-                            PluginLog.Log("CS saved.");
-                        }
-
-                        if (this.config.Cid == 0)
-                        {
-                            ImGui.Text("No character was set as main character yet.");
-                            ImGui.Text("Please click the button above while being logged in on your main character.");
-                        }
-                        else
-                        {
-                            ImGui.Text($"Currently set to {this.config.SetName}(FFXIV_CHR{this.config.Cid:X16})");
-                        }
-
-                        ImGui.Dummy(new Vector2(5, 5));
-
-                        ImGui.Text(
-                            $"The logged in character is {this.State.LocalPlayer.Name} on {this.State.LocalPlayer.HomeWorld.GameData.Name}(FFXIV_CHR{this.State.LocalContentId:X16})");
-
-                        ImGui.Dummy(new Vector2(20, 20));
-
-                        ImGui.Checkbox("Sync Hotbars", ref this.config.SyncHotbars);
-                        ImGui.Checkbox("Sync Macros", ref this.config.SyncMacro);
-                        ImGui.Checkbox("Sync Keybinds", ref this.config.SyncKeybind);
-                        ImGui.Checkbox("Sync Chatlog Settings", ref this.config.SyncLogfilter);
-                        ImGui.Checkbox("Sync Character Settings", ref this.config.SyncCharSettings);
-                        ImGui.Checkbox("Sync Keyboard Settings", ref this.config.SyncKeyboardSettings);
-                        ImGui.Checkbox("Sync Gamepad Settings", ref this.config.SyncGamepadSettings);
-                        ImGui.Checkbox("Sync Card Sets and Verminion Settings", ref this.config.SyncCardSets);
-                    }
-
-                    ImGui.Separator();
-
-                    if (ImGui.Button("Save"))
-                    {
-                        this.isMainConfigWindowDrawing = false;
-                        this.Interface.SavePluginConfig(this.config);
-                        PluginLog.Log("CS saved.");
-                    }
-                }
-
-                ImGui.End();
-            }
+        private void OnChatCommand(string command, string arguments)
+        {
+            this.configWindow.Toggle();
         }
 
         private void DoBackup()
         {
-            var configFolder = this.Interface.GetPluginConfigDirectory();
+            var configFolder = Service.Interface.GetPluginConfigDirectory();
             Directory.CreateDirectory(configFolder);
 
             var backupFolder = new DirectoryInfo(Path.Combine(configFolder, "backups"));
@@ -286,16 +154,56 @@
             PluginLog.Information("Backup OK!");
         }
 
-        /// <inheritdoc/>
-        public string Name => "Character Sync";
-
-        /// <inheritdoc/>
-        public void Dispose()
+        private IntPtr OpenFileDetour(IntPtr pFileInterface, [MarshalAs(UnmanagedType.LPWStr)] string filepath, uint a3)
         {
-            this.Interface.UiBuilder.Draw -= this.UiBuilder_OnBuildUi;
-            this.createFileHook.Dispose();
-            this.warningTex?.Dispose();
-            this.Command.RemoveHandler("/pcharsync");
+            try
+            {
+                PluginLog.Information($"CharSyncHook: {filepath}");
+
+                if (Service.Configuration.Cid != 0)
+                {
+                    var match = this.saveFolderRegex.Match(filepath);
+                    if (match.Success)
+                    {
+                        var rootPath = match.Groups["path"].Value;
+                        var datName = match.Groups["dat"].Value;
+
+                        if (this.isSafeMode)
+                        {
+                            PluginLog.Information($"SAFE MODE: {filepath}");
+                        }
+                        else if (this.PerformRewrite(datName))
+                        {
+                            filepath = $"{rootPath}FFXIV_CHR{Service.Configuration.Cid:X16}/{datName}";
+                            PluginLog.Information("REWRITE: " + filepath);
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                PluginLog.LogError(ex, "ERROR in OpenFileDetour");
+            }
+
+            return this.openFileHook.Original(pFileInterface, filepath, a3);
+        }
+
+        private bool PerformRewrite(string datName)
+        {
+            switch (datName)
+            {
+                case "HOTBAR.DAT" when Service.Configuration.SyncHotbars:
+                case "MACRO.DAT" when Service.Configuration.SyncMacro:
+                case "KEYBIND.DAT" when Service.Configuration.SyncKeybind:
+                case "LOGFLTR.DAT" when Service.Configuration.SyncLogfilter:
+                case "COMMON.DAT" when Service.Configuration.SyncCharSettings:
+                case "CONTROL0.DAT" when Service.Configuration.SyncKeyboardSettings:
+                case "CONTROL1.DAT" when Service.Configuration.SyncGamepadSettings:
+                case "GS.DAT" when Service.Configuration.SyncCardSets:
+                    return true;
+            }
+
+            return false;
         }
     }
 }
