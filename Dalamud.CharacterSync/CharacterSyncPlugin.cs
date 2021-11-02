@@ -158,8 +158,6 @@ namespace Dalamud.CharacterSync
         {
             try
             {
-                PluginLog.Information($"CharSyncHook: {filepath}");
-
                 if (Service.Configuration.Cid != 0)
                 {
                     var match = this.saveFolderRegex.Match(filepath);
