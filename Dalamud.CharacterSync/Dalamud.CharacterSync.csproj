@@ -48,7 +48,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="DalamudPackager" Version="2.1.4" />
+    <PackageReference Include="DalamudPackager" Version="2.1.5" />
     <Reference Include="Dalamud" Private="False" />
     <Reference Include="ImGui.NET" Private="False" />
     <Reference Include="ImGuiScene" Private="False" />
