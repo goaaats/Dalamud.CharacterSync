@@ -198,6 +198,7 @@ namespace Dalamud.CharacterSync
                 case "CONTROL0.DAT" when Service.Configuration.SyncKeyboardSettings:
                 case "CONTROL1.DAT" when Service.Configuration.SyncGamepadSettings:
                 case "GS.DAT" when Service.Configuration.SyncCardSets:
+                case "ADDON.DAT":
                     return true;
             }
 
