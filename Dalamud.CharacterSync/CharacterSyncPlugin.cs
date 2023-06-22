@@ -173,7 +173,7 @@ namespace Dalamud.CharacterSync
                         else if (this.PerformRewrite(datName))
                         {
                             filepath = $"{rootPath}FFXIV_CHR{Service.Configuration.Cid:X16}/{datName}";
-                            PluginLog.Information("REWRITE: " + filepath);
+                            PluginLog.Debug("REWRITE: " + filepath);
                         }
                     }
                 }
