@@ -3,6 +3,7 @@ using System.IO;
 using System.Numerics;
 
 using Dalamud.Interface.Windowing;
+using Dalamud.Interface.Internal;
 using ImGuiNET;
 using ImGuiScene;
 
@@ -13,7 +14,7 @@ namespace Dalamud.CharacterSync.Interface
     /// </summary>
     internal class WarningWindow : Window, IDisposable
     {
-        private readonly TextureWrap warningTex;
+        private readonly IDalamudTextureWrap warningTex;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="WarningWindow"/> class.

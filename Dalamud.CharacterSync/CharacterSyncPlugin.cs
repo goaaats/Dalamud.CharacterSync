@@ -78,9 +78,9 @@ namespace Dalamud.CharacterSync
             }
 
             var address = new PluginAddressResolver();
-            address.Setup();
+            address.Setup(Service.Scanner);
 
-            this.openFileHook = new Hook<FileInterfaceOpenFileDelegate>(address.FileInterfaceOpenFileAddress, this.OpenFileDetour);
+            this.openFileHook = Service.Interop.HookFromAddress<FileInterfaceOpenFileDelegate>(address.FileInterfaceOpenFileAddress, this.OpenFileDetour);
             this.openFileHook.Enable();
         }
 

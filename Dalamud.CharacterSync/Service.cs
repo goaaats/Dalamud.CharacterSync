@@ -7,6 +7,7 @@ using Dalamud.Game.Command;
 using Dalamud.Game.Gui;
 using Dalamud.IoC;
 using Dalamud.Plugin;
+using Dalamud.Plugin.Services;
 using Dalamud.RichPresence.Config;
 
 namespace Dalamud.CharacterSync
@@ -31,12 +32,24 @@ namespace Dalamud.CharacterSync
         /// Gets the Dalamud client state.
         /// </summary>
         [PluginService]
-        internal static ClientState ClientState { get; private set; } = null!;
+        internal static IClientState ClientState { get; private set; } = null!;
 
         /// <summary>
         /// Gets the Dalamud command manager.
         /// </summary>
         [PluginService]
-        internal static CommandManager CommandManager { get; private set; } = null!;
+        internal static ICommandManager CommandManager { get; private set; } = null!;
+
+        /// <summary>
+        /// Gets the Dalamud command manager.
+        /// </summary>
+        [PluginService]
+        internal static IGameInteropProvider Interop { get; private set; } = null!;
+
+        /// <summary>
+        /// Gets the scanner.
+        /// </summary>
+        [PluginService]
+        internal static ISigScanner Scanner { get; private set; } = null!;
     }
 }

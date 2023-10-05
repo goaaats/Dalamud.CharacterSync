@@ -18,7 +18,7 @@ namespace Dalamud.CharacterSync
         public IntPtr FileInterfaceOpenFileAddress { get; private set; }
 
         /// <inheritdoc/>
-        protected override void Setup64Bit(SigScanner scanner)
+        protected override void Setup64Bit(ISigScanner scanner)
         {
             this.FileInterfaceOpenFileAddress = scanner.ScanText(FileInterfaceOpenFileSignature);
 
