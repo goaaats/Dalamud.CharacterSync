@@ -3,9 +3,7 @@ using System.IO;
 using System.Numerics;
 
 using Dalamud.Interface.Windowing;
-using Dalamud.Interface.Internal;
 using ImGuiNET;
-using ImGuiScene;
 
 namespace Dalamud.CharacterSync.Interface
 {
@@ -14,8 +12,6 @@ namespace Dalamud.CharacterSync.Interface
     /// </summary>
     internal class WarningWindow : Window, IDisposable
     {
-        private readonly IDalamudTextureWrap warningTex;
-
         /// <summary>
         /// Initializes a new instance of the <see cref="WarningWindow"/> class.
         /// </summary>
@@ -23,15 +19,11 @@ namespace Dalamud.CharacterSync.Interface
             : base("Character Sync Message", ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoDecoration | ImGuiWindowFlags.NoTitleBar)
         {
             this.Size = new Vector2(600, 400);
-
-            var warningTexPath = Path.Combine(Service.Interface.AssemblyLocation.Directory.FullName, "warningtex.png");
-            this.warningTex = Service.Interface.UiBuilder.LoadImage(warningTexPath);
         }
 
         /// <inheritdoc/>
         public void Dispose()
         {
-            this.warningTex?.Dispose();
         }
 
         /// <inheritdoc/>
@@ -49,7 +41,8 @@ namespace Dalamud.CharacterSync.Interface
         /// <inheritdoc/>
         public override void Draw()
         {
-            ImGui.Image(this.warningTex.ImGuiHandle, new Vector2(600, 400));
+            // TODO: stylize this to be like warningtex.png
+            ImGui.Text("Hey! Please set up character data sync and restart your game! Thanks!");
         }
     }
 }
