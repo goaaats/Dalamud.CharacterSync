@@ -30,19 +30,37 @@ namespace Dalamud.CharacterSync.Interface
         public override void PreDraw()
         {
             ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(0, 0));
+            ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(1.0f, 0.0f, 0.0f, 1.0f));
         }
 
         /// <inheritdoc/>
         public override void PostDraw()
         {
             ImGui.PopStyleVar();
+            ImGui.PopStyleColor();
         }
 
         /// <inheritdoc/>
         public override void Draw()
         {
-            // TODO: stylize this to be like warningtex.png
-            ImGui.Text("Hey! Please set up character data sync and restart your game! Thanks!");
+            ImGui.SetWindowFontScale(4.0f);
+
+            TextCentered("HEY.");
+            TextCentered("Please set up");
+            TextCentered("Character Data Sync");
+            TextCentered("and restart your game!");
+
+            ImGui.SetWindowFontScale(2.0f);
+
+            TextCentered("only then, it will work :)");
+
+            ImGui.SetWindowFontScale(1.0f);
+
+            void TextCentered(string text)
+            {
+                ImGui.SetCursorPosX((ImGui.GetWindowSize().X - ImGui.CalcTextSize(text).X) * 0.5f);
+                ImGui.Text(text);
+            }
         }
     }
 }
