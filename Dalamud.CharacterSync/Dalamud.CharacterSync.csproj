@@ -6,7 +6,7 @@
   </PropertyGroup>
 
   <PropertyGroup>
-    <AssemblyVersion>2.0.0.9</AssemblyVersion>
+    <AssemblyVersion>2.0.0.10</AssemblyVersion>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
