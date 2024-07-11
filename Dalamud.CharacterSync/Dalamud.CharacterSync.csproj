@@ -1,6 +1,6 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup Label="Target">
-    <TargetFramework>net7.0-windows</TargetFramework>
+    <TargetFramework>net8.0-windows</TargetFramework>
     <PlatformTarget>x64</PlatformTarget>
     <LangVersion>9.0</LangVersion>
   </PropertyGroup>
@@ -49,7 +49,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="DalamudPackager" Version="2.1.12" />
+    <PackageReference Include="DalamudPackager" Version="2.1.13" />
     <Reference Include="Dalamud" Private="False" />
     <Reference Include="ImGui.NET" Private="False" />
     <Reference Include="ImGuiScene" Private="False" />

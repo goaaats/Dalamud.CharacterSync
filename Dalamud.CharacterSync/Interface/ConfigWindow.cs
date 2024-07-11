@@ -40,7 +40,7 @@ namespace Dalamud.CharacterSync.Interface
                 Service.Configuration.Cid = Service.ClientState.LocalContentId;
                 Service.Configuration.SetName = $"{Service.ClientState.LocalPlayer.Name} on {Service.ClientState.LocalPlayer.HomeWorld.GameData.Name}";
                 Service.Configuration.Save();
-                PluginLog.Log("CS saved.");
+                CharacterSyncPlugin.PluginLog.Info("CS saved.");
             }
 
             if (Service.Configuration.Cid == 0)
@@ -74,7 +74,7 @@ namespace Dalamud.CharacterSync.Interface
             {
                 this.IsOpen = false;
                 Service.Configuration.Save();
-                PluginLog.Log("CS saved.");
+                CharacterSyncPlugin.PluginLog.Information("CS saved.");
             }
         }
     }

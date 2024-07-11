@@ -10,6 +10,7 @@ using Dalamud.Hooking;
 using Dalamud.Interface.Windowing;
 using Dalamud.Logging;
 using Dalamud.Plugin;
+using Dalamud.Plugin.Services;
 using Dalamud.RichPresence.Config;
 
 namespace Dalamud.CharacterSync
@@ -19,6 +20,8 @@ namespace Dalamud.CharacterSync
     /// </summary>
     internal class CharacterSyncPlugin : IDalamudPlugin
     {
+        public static IPluginLog PluginLog;
+
         private readonly WindowSystem windowSystem;
         private readonly ConfigWindow configWindow;
         private readonly WarningWindow warningWindow;
@@ -33,10 +36,11 @@ namespace Dalamud.CharacterSync
         /// <summary>
         /// Initializes a new instance of the <see cref="CharacterSyncPlugin"/> class.
         /// </summary>
-        /// <param name="pluginInterface">Dalamud plugin interface.</param>
-        public CharacterSyncPlugin(DalamudPluginInterface pluginInterface)
+        public CharacterSyncPlugin(IDalamudPluginInterface interf, IPluginLog pluginLog)
         {
-            pluginInterface.Create<Service>();
+            PluginLog = pluginLog;
+
+            interf.Create<Service>();
 
             Service.Configuration = Service.Interface.GetPluginConfig() as CharacterSyncConfig ?? new CharacterSyncConfig();
 
@@ -180,7 +184,7 @@ namespace Dalamud.CharacterSync
             }
             catch (Exception ex)
             {
-                PluginLog.LogError(ex, "ERROR in OpenFileDetour");
+                PluginLog.Error(ex, "ERROR in OpenFileDetour");
             }
 
             return this.openFileHook.Original(pFileInterface, filepath, a3);
