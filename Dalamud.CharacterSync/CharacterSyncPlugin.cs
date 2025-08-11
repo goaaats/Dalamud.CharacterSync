@@ -3,7 +3,7 @@ using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
-
+using Dalamud.CharacterSync.Attributes;
 using Dalamud.CharacterSync.Interface;
 using Dalamud.Game.Command;
 using Dalamud.Hooking;
@@ -12,6 +12,7 @@ using Dalamud.Logging;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
 using Dalamud.RichPresence.Config;
+using static FFXIVClientStructs.FFXIV.Client.UI.AddonActionCross;
 
 namespace Dalamud.CharacterSync
 {
@@ -21,6 +22,7 @@ namespace Dalamud.CharacterSync
     internal class CharacterSyncPlugin : IDalamudPlugin
     {
         public static IPluginLog PluginLog;
+        private readonly PluginCommandManager<CharacterSyncPlugin> commandManager;
 
         private readonly WindowSystem windowSystem;
         private readonly ConfigWindow configWindow;
@@ -36,13 +38,14 @@ namespace Dalamud.CharacterSync
         /// <summary>
         /// Initializes a new instance of the <see cref="CharacterSyncPlugin"/> class.
         /// </summary>
-        public CharacterSyncPlugin(IDalamudPluginInterface interf, IPluginLog pluginLog)
+        public CharacterSyncPlugin(IDalamudPluginInterface interf, IPluginLog pluginLog, ICommandManager command)
         {
             PluginLog = pluginLog;
 
             interf.Create<Service>();
 
             Service.Configuration = Service.Interface.GetPluginConfig() as CharacterSyncConfig ?? new CharacterSyncConfig();
+            this.commandManager = new PluginCommandManager<CharacterSyncPlugin>(this, command);
 
             this.configWindow = new();
             this.warningWindow = new();
@@ -53,11 +56,6 @@ namespace Dalamud.CharacterSync
             Service.Interface.UiBuilder.Draw += this.windowSystem.Draw;
             Service.Interface.UiBuilder.OpenConfigUi += this.OnOpenConfigUi;
 
-            Service.CommandManager.AddHandler("/pcharsync", new CommandInfo(this.OnChatCommand)
-            {
-                HelpMessage = "Open the Character Sync configuration.",
-                ShowInHelp = true,
-            });
 
             if (Service.Interface.Reason == PluginLoadReason.Installer)
             {
@@ -73,6 +71,7 @@ namespace Dalamud.CharacterSync
 
                 this.warningWindow.IsOpen = true;
             }
+
 
             try
             {
@@ -112,9 +111,19 @@ namespace Dalamud.CharacterSync
             this.configWindow.Toggle();
         }
 
+        [Command("/pcharsync")]
+        [HelpMessage("Open the Character Sync configuration.")]
         private void OnChatCommand(string command, string arguments)
         {
             this.configWindow.Toggle();
+        }
+
+        [Command("/pcharsyncdebug")]
+        [HelpMessage("Open the Character Sync warning window.")]
+        [DoNotShowInHelp]
+        private void OpenSafeModeDebugCommand(string command, string args)
+        {
+            this.warningWindow.Toggle();
         }
 
         private void DoBackup()
