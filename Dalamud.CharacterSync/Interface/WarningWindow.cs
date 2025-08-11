@@ -18,7 +18,7 @@ namespace Dalamud.CharacterSync.Interface
         public WarningWindow()
             : base("Character Sync Message", ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoDecoration | ImGuiWindowFlags.NoTitleBar)
         {
-            this.Size = new Vector2(600, 400);
+            this.Size = new Vector2(650, 400);
         }
 
         /// <inheritdoc/>
@@ -43,16 +43,24 @@ namespace Dalamud.CharacterSync.Interface
         /// <inheritdoc/>
         public override void Draw()
         {
-            ImGui.SetWindowFontScale(4.0f);
+            ImGui.SetWindowFontScale(2.5f);
 
             TextCentered("HEY.");
-            TextCentered("Please set up");
-            TextCentered("Character Data Sync");
+            TextCentered("Dalamud.CharacterDataSync");
+            TextCentered("has been freshly installed or updated");
+            TextCentered("and is not loaded correctly.");
+            TextCentered("Please confirm the plugin's settings");
             TextCentered("and restart your game!");
 
-            ImGui.SetWindowFontScale(2.0f);
+            ImGui.SetWindowFontScale(1.5f);
 
-            TextCentered("only then, it will work :)");
+            TextCentered("\n");
+            TextCentered("only then, will it work :)");
+
+            ImGui.SetWindowFontScale(1.0f);
+
+            TextCentered("\n");
+            TextCentered("This message will not go away until then");
 
             ImGui.SetWindowFontScale(1.0f);
 
